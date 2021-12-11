@@ -40,7 +40,105 @@ namespace advent_of_code
 
         private long DoDay(List<string> data, bool isPt2 = false)
         {
-            return 0;
+            var octopi = Parse(data);
+            long output = 0;
+            long maxStep = 100;
+            if (isPt2)
+            {
+                maxStep = long.MaxValue;
+            }
+            for (long step = 0; step < maxStep; step++)
+            {
+                for (int i = 0; i < octopi.GetLength(0); i++)
+                {
+                    for (int j = 0; j < octopi.GetLength(1); j++)
+                    {
+                        if (octopi[i, j] == 9)
+                        {
+                            blink(octopi,i,j);
+                        }
+                        else
+                        {
+                            octopi[i, j]++;
+                        }
+                    }
+                }
+
+                if (isPt2)
+                {
+                    if(ClearBlinks(octopi) == octopi.GetLength(0)*octopi.GetLength(1))
+                        return step + 1;
+                }
+                output+=ClearBlinks(octopi);
+            }
+            return output;
+        }
+
+        private static long ClearBlinks(int[,] octopi)
+        {
+            long clearedBlinks = 0;
+            for (int i = 0; i < octopi.GetLength(0); i++)
+            {
+                for (int j = 0; j < octopi.GetLength(1); j++)
+                {
+                    if (octopi[i, j] > 9)
+                    {
+                        octopi[i, j] = 0;
+                        clearedBlinks++;
+                    }
+                }
+            }
+            PrintIt(octopi);
+            return clearedBlinks;
+        }
+
+        private static long blink(int[,] octopi, int i, int j)
+        {
+            long blinkCount = 0;
+            if( i < 0 || i >=  octopi.GetLength(0)  || j < 0 || j >= octopi.GetLength(1))
+                return blinkCount;
+            octopi[i, j]++;
+            blinkCount = 1;
+            if (octopi[i, j] == 10)
+            {
+                blinkCount+=blink(octopi,i-1, j);
+                blinkCount+=blink(octopi,i+1, j);
+                blinkCount+=blink(octopi,i, j-1);
+                blinkCount+=blink(octopi,i, j+1);
+                blinkCount+=blink(octopi,i+1, j+1);
+                blinkCount+=blink(octopi,i+1, j-1);
+                blinkCount+=blink(octopi,i-1, j-1);
+                blinkCount+=blink(octopi,i-1, j+1);  
+            }
+
+            return blinkCount;
+        }
+        private static void PrintIt(int[,] data)
+        {
+            return;
+            Console.WriteLine("========================");
+            Console.WriteLine(string.Join(Environment.NewLine, data.OfType<int>()
+                .Select((value, index) => new { value, index })
+                .GroupBy(x => x.index / data.GetLength(1))
+                .Select(x => $"{{{string.Join(",", x.Select(y => y.value))}}}")));
+            Console.WriteLine("========================");
+
+        }
+
+        private static int[,] Parse(List<string> data)
+        {
+            var octopi = new int[data.Count, data[0].Length];
+            for (var index = 0; index < data.Count; index++)
+            {
+                var line = data[index];
+                for (var i = 0; i < line.Length; i++)
+                {
+                    var height = line[i];
+                    octopi[index, i] = (int)char.GetNumericValue(height);
+                }
+            }
+
+            return octopi;
         }
     }
 }
