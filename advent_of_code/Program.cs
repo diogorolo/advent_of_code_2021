@@ -4,7 +4,7 @@ using System;
 using System.Diagnostics;
 using advent_of_code;
 
-var day = new Day12();
+var day = new Day13();
 var watch = new Stopwatch();
 watch.Start();
 Console.WriteLine(day.PartTest1());
