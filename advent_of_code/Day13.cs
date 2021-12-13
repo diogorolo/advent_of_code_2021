@@ -75,11 +75,11 @@
                 {
                     if (points.Contains((j, i)))
                     {
-                        Console.Write("x");
+                        Console.Write("█");
                     }
                     else
                     {
-                        Console.Write(".");
+                        Console.Write(" ");
                     }
                 }
                 Console.WriteLine();
