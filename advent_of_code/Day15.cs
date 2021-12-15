@@ -58,7 +58,9 @@ namespace advent_of_code
             var end = nodes[(max, max)];
 
             //Dijkstra(nodes.Select(x => x.Value).ToList()); //new List<Node>(){start}));
-            Dijkstra(new List<Node>() { start });
+            PriorityQueue<Node, int> q = new PriorityQueue<Node, int>();
+            q.Enqueue(start,0);
+            Dijkstra(q);
             var path = new List<Node>();
             path.Add(end);
             var curNode = end;
@@ -99,12 +101,11 @@ namespace advent_of_code
             Console.ResetColor();
         }
 
-        private static void Dijkstra(List<Node> nodes)
+        private static void Dijkstra(PriorityQueue<Node, int> nodes)
         {
             while (nodes.Count > 0)
             {
-                var closest = nodes.OrderBy(x => x.MinCostFromStart).ElementAt(0);
-                nodes.Remove(closest);
+                var closest = nodes.Dequeue();
                 foreach (var node in closest.Nodes)
                 {
                     //if (nodes.Contains(node))
@@ -114,7 +115,7 @@ namespace advent_of_code
                         {
                             node.MinCostFromStart = dist;
                             node.PreviousNode = closest;
-                            nodes.Add(node);
+                            nodes.Enqueue(node, (int)dist);
                         }
                     }
                 }
