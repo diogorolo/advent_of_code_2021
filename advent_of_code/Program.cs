@@ -2,7 +2,7 @@
 
 using System.Diagnostics;
 using advent_of_code;
-var day = new Day15();
+var day = new Day16();
 var watch = new Stopwatch();
 string elapsedTime = "";
 long res = 0;
