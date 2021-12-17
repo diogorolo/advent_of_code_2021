@@ -1,5 +1,6 @@
 ﻿using System.Collections;
 using System.Diagnostics;
+using System.Numerics;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Xml;
@@ -39,14 +40,17 @@ namespace advent_of_code
         {
             var offset = 0;
             long versionSum = 0;
+            long value = 0;
             var byteData = Convert.FromHexString(data[0]);
-            while(offset + 11 < byteData.Length * 8)
+            while (offset + 11 < byteData.Length * 8)
             {
-                var packet = new Packet(byteData,offset, isPt2);
-                (offset, var version, _) = packet.Process();
+                var packet = new Packet(byteData, offset, isPt2);
+                (offset, var version, value) = packet.Process();
                 versionSum += version;
             }
-            
+
+            if (isPt2)
+                return value;
             return versionSum;
         }
 
@@ -63,7 +67,7 @@ namespace advent_of_code
                 this.data = data;
                 _offset = offset;
                 _isPt2 = isPt2;
-                Header = new Header( data, offset);
+                Header = new Header(data, offset);
             }
 
             public (int processBytes, long versionSum, long result) Process()
@@ -73,34 +77,67 @@ namespace advent_of_code
                 if (Header.Type == 4)
                 {
                     curOffset += ProcessSingleData(data, curOffset, out var value);
-                    return (curOffset, versionSum, 0);
+                    return (curOffset, versionSum, value);
                 }
 
+                var innerValues = new List<long>();
                 if (Header.LengthType == 1)
                 {
                     for (int i = 0; i < Header.DataLength; i++)
                     {
                         Packet subPacket = new Packet(data, curOffset, _isPt2);
-                        (curOffset, var version, _) = subPacket.Process();
+                        (curOffset, var version, var value) = subPacket.Process();
+                        innerValues.Add(value);
                         versionSum += version;
                     }
                 }
                 else
                 {
                     var processedBytes = 0;
-                    
-                    while(processedBytes < Header.DataLength)
+
+                    while (processedBytes < Header.DataLength)
                     {
                         Packet subPacket = new Packet(data, curOffset, _isPt2);
-                        (curOffset, var version, _) = subPacket.Process();
+                        (curOffset, var version, var value) = subPacket.Process();
+                        innerValues.Add(value);
                         versionSum += version;
                         processedBytes = curOffset - Header.HeaderLength;
                     }
 
-                    //curOffset += processedBytes;
+                    if (processedBytes > Header.DataLength)
+                        throw new Exception("err");
                 }
-                
-                return (curOffset, versionSum, 0);
+
+
+                long finalValue = 0;
+
+                switch (Header.Type)
+                {
+                    case 0:
+                        finalValue = innerValues.Sum();
+                        break;
+                    case 1:
+                        finalValue = innerValues.Aggregate((acc, v) => acc * v);
+                        break;
+                    case 2:
+                        finalValue = innerValues.Min();
+                        break;
+                    case 3:
+                        finalValue = innerValues.Max();
+                        break;
+                    case 5:
+                        finalValue = innerValues.First() > innerValues.Last() ? 1 : 0;
+                        break;
+                    case 6:
+                        finalValue = innerValues.First() < innerValues.Last() ? 1 : 0;
+                        break;
+                    case 7:
+                        finalValue = innerValues.First() == innerValues.Last() ? 1 : 0;
+                        break;
+                }
+
+
+                return (curOffset, versionSum, finalValue);
             }
 
             int ProcessSingleData(byte[] array, int start, out long value)
@@ -113,22 +150,24 @@ namespace advent_of_code
                 {
                     var curByte = curBit / 8;
                     var curBitInByte = curBit % 8;
-                    
+                    if (curByte >= array.Length)
+                        break;
                     var bit = (array[curByte] & (1 << 7 - curBitInByte)) >> (7 - curBitInByte);
                     var signalBit = (curBit - start) % 5 == 0;
                     if (isLast && signalBit)
                     {
                         break;
                     }
-                    if ( signalBit && bit == 0)
+
+                    if (signalBit && bit == 0)
                     {
                         isLast = true;
                     }
 
-                    
+
                     curBit++;
 
-                    if(signalBit)
+                    if (signalBit)
                         continue;
 
                     var curAddedByte = curAddedBit / 8;
@@ -143,6 +182,7 @@ namespace advent_of_code
                 return curBit - start;
             }
         }
+
         private static long CalculateValue(int numBits, byte[] array, int offset)
         {
             long value = 0;
@@ -151,11 +191,13 @@ namespace advent_of_code
                 var curByte = i / 8;
                 var curBit = i % 8;
                 //Console.WriteLine($"{((array[curByte] & (1 << 7 - curBit)) >> (7 - curBit))} x 2 ^ {numBits + offset - i - 1}");
-                value += (((array[curByte] & (1 << 7 - curBit)) >> (7 - curBit)) * (int)Math.Pow(2, numBits + offset - i - 1));
+                value += (((array[curByte] & (1 << 7 - curBit)) >> (7 - curBit)) *
+                          (int)Math.Pow(2, numBits + offset - i - 1));
             }
 
             return value;
         }
+
         class Header
         {
             private readonly int _start;
@@ -165,14 +207,17 @@ namespace advent_of_code
                 _start = start;
                 Data = data;
             }
-            public int Version => (byte) CalculateValue(3, Data, _start);
+
+            public int Version => (byte)CalculateValue(3, Data, _start);
 
             public int Type => (byte)CalculateValue(3, Data, _start + 3);
 
-            public int LengthType => Type != 4 ? (byte)(byte)CalculateValue(1, Data, _start + 6) : throw new Exception();
-            public int DataLength => LengthType == 0 ?
-                (byte)(CalculateValue(15, Data, _start + 7)) :
-                (byte)(CalculateValue(11, Data, _start + 7));
+            public int LengthType =>
+                Type != 4 ? (byte)(byte)CalculateValue(1, Data, _start + 6) : throw new Exception();
+
+            public int DataLength => LengthType == 0
+                ? (byte)(CalculateValue(15, Data, _start + 7))
+                : (byte)(CalculateValue(11, Data, _start + 7));
 
             public int HeaderLength => 6 + (Type == 4 ? 0 : LengthType == 0 ? 16 : 12);
             public byte[] Data { get; private init; }
